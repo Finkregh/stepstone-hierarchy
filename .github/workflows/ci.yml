@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 10
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node with pnpm
+        uses: ./.github/actions/setup-node-env
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format Check
+        run: pnpm run format:check
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Unit Tests
+        run: pnpm run test
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unit-test-results
+          path: reports
+
+      - uses: codecov/codecov-action@v6
+        with:
+          files: ./reports/coverage/clover.xml
+          flags: unittests # optional
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node with pnpm
+        uses: ./.github/actions/setup-node-env
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+
+  release:
+    name: Release
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node with pnpm
+        uses: ./.github/actions/setup-node-env
+        with:
+          pnpm-version: ${{ env.PNPM_VERSION }}
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - name: Bump version
+        run: pnpm version --no-git-tag-version ${{ github.event.release.tag_name }}
+
+      - name: Publish to Package registry
+        run: |
+          pnpm publish --access=public --no-git-checks --report-summary
+
+      - name: Update Changelog
+        uses: stefanzweifel/changelog-updater-action@v1
+        with:
+          latest-version: ${{ github.event.release.tag_name }}
+          release-notes: ${{ github.event.release.body }}
+
+      - name: Commit release files
+        uses: stefanzweifel/git-auto-commit-action@v7.2.0
+        with:
+          branch: main
+          commit_message: 'chore(release): [skip-ci] ${{ github.event.release.tag_name }}'
+          file_pattern: CHANGELOG.md package.json

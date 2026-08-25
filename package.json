@@ -1,0 +1,67 @@
+{
+  "name": "pi-stepstone-hierarchy",
+  "version": "0.1.0",
+  "description": "Hierarical projects/tasks for stepstone",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.34.5",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format:check": "prettier --check src/**/*.{ts,tsx}",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src/**/*.{ts,tsx}",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "test": "vitest run",
+    "test:watch": "vitest run --watch",
+    "test:ui": "vitest ui"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Bruno Paz",
+    "email": "oss@brunopaz.dev",
+    "url": "https://brunopaz.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/finkregh/stepstone-hierarchy.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/config-conventional": "^20.0.0",
+    "@eslint/js": "^9.39.1",
+    "@tsconfig/node24": "^24.0.1",
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/ui": "^4.0.8",
+    "acorn": "^8.15.0",
+    "commitlint": "^20.1.0",
+    "esbuild": "^0.25.12",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.2.5",
+    "tsdown": "^0.16.1",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.46.3",
+    "vitepress": "2.0.0-alpha.12",
+    "vitest": "^4.0.8"
+  }
+}

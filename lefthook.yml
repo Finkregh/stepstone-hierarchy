@@ -1,0 +1,24 @@
+# Lefthook configuration for git hooks
+# https://github.com/evilmartians/lefthook
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: 'src/*.ts'
+      run: prettier format {staged_files}
+      stage_fixed: true
+    lint:
+      glob: 'src/*.ts'
+      run: eslint {staged_files} --fix
+      stage_fixed: true
+
+pre-push:
+  commands:
+    test:
+      run: pnpm test
+
+# Commit-msg hooks - run after commit message is entered, but before commit is finalized
+commit-msg:
+  commands:
+    commitlint:
+      run: commitlint --edit

@@ -1,0 +1,2 @@
+# 3 days, in minutes — mirrors Renovate's security:minimumReleaseAgeNpm preset
+minimumReleaseAge: 4320

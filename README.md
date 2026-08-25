@@ -1,0 +1,33 @@
+# pi-stepstone-hierarchy
+
+> Hierarical projects/tasks for stepstone
+
+## 🚀 Getting started
+
+### Installation
+
+TBD
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## 🫶 Support
+
+If you find this project helpful and would like to support its development, there are a few ways you can contribute:
+
+[![Sponsor me on GitHub](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23db61a2.svg?&logo=github&logoColor=red&&style=for-the-badge&labelColor=white)](https://github.com/sponsors/brpaz)
+
+<a href="https://www.buymeacoffee.com/Z1Bu6asGV" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>
+
+## 📃 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE.md) file for details.
+
+## 📩 Contact
+
+- Bruno Paz - [https://brunopaz.dev](https://brunopaz.dev) - oss@brunopaz.dev
+
+- Source Url: [https://github.com/finkregh/stepstone-hierarchy](https://github.com/finkregh/stepstone-hierarchy)
