@@ -1,4 +1,52 @@
-// replace this with actual code later ;)
-export function hello(name: string) {
-  return `Hello ${name}!`
-}
+export {
+  HIERARCHY_VERSION,
+  HierarchyError,
+  HierarchyStore,
+  type CreateItemInput,
+  type HierarchyWorklist,
+  type MoveItemInput,
+  type Subtask,
+  type Task,
+  type UpdateItemInput,
+  type WorkItem,
+  type WorkItemKind,
+  type WorkItemStatus,
+} from './hierarchy.js'
+export {
+  formatDoctorReport,
+  runHierarchyDoctor,
+  type DoctorCode,
+  type DoctorFinding,
+  type DoctorSeverity,
+  type HierarchyDoctorReport,
+} from './hierarchy-doctor.js'
+export {
+  HierarchyService,
+  type ConfirmationRequiredResponse,
+  type CreateHierarchyCommand,
+  type GetHierarchyCommand,
+  type GetHierarchyResponse,
+  type GetSubtreeCommand,
+  type GetSubtreeResponse,
+  type LifecycleConfirmation,
+  type ListHierarchyCommand,
+  type ListHierarchyResponse,
+  type MoveHierarchyCommand,
+  type MutationResponse,
+  type RevisionedCommand,
+  type SetStatusCommand,
+  type StatusResponse,
+  type UpdateHierarchyCommand,
+  type WorkItemSummary,
+  type WorkItemTree,
+} from './hierarchy-service.js'
+export {
+  RootGoalReaderError,
+  SpawnCommandRunner,
+  StepstoneCliRootGoalReader,
+  type CommandResult,
+  type CommandRunner,
+  type RootGoalReader,
+  type RootGoalResolution,
+  type RootGoalState,
+} from './root-goal.js'

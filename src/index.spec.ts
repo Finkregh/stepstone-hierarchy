@@ -1,8 +1,8 @@
-import { expect, it, describe } from 'vitest'
-import { hello } from './index.js'
+import { describe, expect, it } from 'vitest'
+import { HIERARCHY_VERSION } from './index.js'
 
-describe('hello', () => {
-  it('prints Hello world', () => {
-    expect(hello('world')).toBe('Hello world!')
+describe('public API', () => {
+  it('exports the hierarchy model', () => {
+    expect(HIERARCHY_VERSION).toBe(1)
   })
 })

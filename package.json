@@ -1,8 +1,8 @@
 {
-  "name": "pi-stepstone-hierarchy",
+  "name": "stepstone-hierarchy",
   "version": "0.1.0",
   "description": "Hierarical projects/tasks for stepstone",
-  "main": "index.js",
+  "main": "./dist/index.mjs",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -11,10 +11,13 @@
   "files": [
     "dist"
   ],
+  "pi": {
+    "extensions": ["./dist/pi-extension.mjs"]
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./package.json": "./package.json"
@@ -22,11 +25,11 @@
   "scripts": {
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format:check": "prettier --check src/**/*.{ts,tsx}",
+    "format:check": "prettier --check 'src/**/*.{ts,tsx}'",
     "build": "tsdown",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write src/**/*.{ts,tsx}",
+    "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
@@ -45,8 +48,18 @@
     "url": "https://github.com/finkregh/stepstone-hierarchy.git"
   },
   "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.0.0",
+    "@earendil-works/pi-ai": "0.80.10",
+    "@earendil-works/pi-coding-agent": "0.80.2",
+    "@earendil-works/pi-tui": "0.80.2",
+    "typebox": "1.1.38",
     "@eslint/js": "^9.39.1",
     "@tsconfig/node24": "^24.0.1",
     "@types/node": "^24.10.0",

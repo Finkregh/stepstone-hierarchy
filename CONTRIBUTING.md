@@ -1,4 +1,4 @@
-# Contributing to pi-stepstone-hierarchy
+# Contributing to stepstone-hierarchy
 
 This document outlines the guidelines and best practices for contributing to the project. Please take a moment to read through it before submitting a pull request.
 
@@ -28,7 +28,7 @@ To install Devenv, follow the instructions at [devenv.sh](https://devenv.sh/gett
 
 ```bash
 git clone https://github.com/finkregh/stepstone-hierarchy
-cd pi-stepstone-hierarchy
+cd stepstone-hierarchy
 direnv allow
 ```
 
