@@ -39,8 +39,5 @@
   "prConcurrentLimit": 10,
   "labels": [
     "dependencies"
-  ],
-  "reviewers": [
-    "brpaz"
   ]
 }
