@@ -132,7 +132,16 @@ export default function hierarchyExtension(pi: ExtensionAPI) {
     handler: async (args, ctx) => {
       const projectRoot = await resolveProjectRoot(ctx.cwd)
       const rootGoalId = args.trim() || undefined
-      const runtime = createHierarchyRuntime({ projectRoot })
+      const runtime = createHierarchyRuntime({
+        projectRoot,
+        confirmLifecycle: async (request) =>
+          ctx.ui.confirm(
+            request.action === 'complete'
+              ? 'Complete companion task?'
+              : 'Archive companion task?',
+            `${request.item.title}\n\nThis affects only companion task ${request.item.id}.`
+          ),
+      })
       const load = () => loadHierarchyTree(runtime.service, rootGoalId)
       if (ctx.mode === 'tui') {
         const snapshot = await load()
@@ -149,6 +158,54 @@ export default function hierarchyExtension(pi: ExtensionAPI) {
                   ? 'Stepstone root — read-only'
                   : 'Companion-owned item'
               ctx.ui.notify(`${ownership}\n${node.id}`, 'info')
+            },
+            onAdd: async (node, expectedRevision) => {
+              const title = await ctx.ui.input(
+                node.type === 'root'
+                  ? 'Add companion task'
+                  : 'Add companion subtask',
+                node.type === 'root' ? 'Task title' : 'Subtask title'
+              )
+              if (title === undefined) return undefined
+              const trimmedTitle = title.trim()
+              if (trimmedTitle === '') throw new Error('Title is required.')
+              const result = await runtime.execute(
+                node.type === 'root'
+                  ? {
+                      action: 'create',
+                      expectedRevision,
+                      kind: 'task',
+                      rootGoalId: node.rootGoalId,
+                      parentId: node.rootGoalId,
+                      title: trimmedTitle,
+                    }
+                  : {
+                      action: 'create',
+                      expectedRevision,
+                      kind: 'subtask',
+                      rootGoalId: node.rootGoalId,
+                      parentId: node.id,
+                      title: trimmedTitle,
+                    }
+              )
+              if (result.operation !== 'create')
+                throw new Error('Create did not return an item.')
+              return result.result.item.id
+            },
+            onSetStatus: async (node, status, expectedRevision) => {
+              const result = await runtime.execute({
+                action: 'set_status',
+                expectedRevision,
+                id: node.id,
+                status,
+              })
+              if ('kind' in result && result.kind === 'cancelled') return false
+              if (!('result' in result) || result.operation !== 'set_status') {
+                throw new Error('Status change was not applied.')
+              }
+              if ('kind' in result.result)
+                throw new Error('Status change requires confirmation.')
+              return true
             },
           })
           return component

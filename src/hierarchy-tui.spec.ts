@@ -49,12 +49,14 @@ describe('hierarchy terminal tree projection', () => {
     const tree = roots([
       {
         id: 'goal-a',
+        key: 'root:goal-a',
         type: 'root',
         title: 'Stepstone root: goal-a',
         rootGoalId: 'goal-a',
         children: [
           {
             id: 'task-1',
+            key: 'item:task-1',
             type: 'task',
             title: 'Task',
             rootGoalId: 'goal-a',
@@ -63,6 +65,7 @@ describe('hierarchy terminal tree projection', () => {
             children: [
               {
                 id: 'subtask-1',
+                key: 'item:subtask-1',
                 type: 'subtask',
                 title: 'Subtask',
                 rootGoalId: 'goal-a',
@@ -77,12 +80,14 @@ describe('hierarchy terminal tree projection', () => {
     ])
 
     expect(
-      visibleHierarchyRows(tree, new Set(['goal-a', 'task-1'])).map(
+      visibleHierarchyRows(tree, new Set(['root:goal-a', 'item:task-1'])).map(
         (row) => row.node.id
       )
     ).toEqual(['goal-a', 'task-1', 'subtask-1'])
     expect(
-      visibleHierarchyRows(tree, new Set(['goal-a'])).map((row) => row.node.id)
+      visibleHierarchyRows(tree, new Set(['root:goal-a'])).map(
+        (row) => row.node.id
+      )
     ).toEqual(['goal-a', 'task-1'])
   })
 })

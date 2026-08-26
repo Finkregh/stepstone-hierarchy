@@ -216,6 +216,12 @@ export class HierarchyService {
         command.confirmation.action !== action
       ) {
         const document = await this.store.read()
+        if (document.revision !== command.expectedRevision) {
+          throw new HierarchyError(
+            'CONFLICT',
+            `Expected revision ${command.expectedRevision}, found ${document.revision}`
+          )
+        }
         return {
           kind: 'confirmation-required',
           action,

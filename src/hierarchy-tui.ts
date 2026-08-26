@@ -1,8 +1,11 @@
 import { Key, matchesKey, truncateToWidth } from '@earendil-works/pi-tui'
 import type { HierarchyService, WorkItemSummary } from './hierarchy-service.js'
 
+const TREE_MAX_ITEMS = 100
+
 export interface HierarchyTreeNode {
   id: string
+  key: string
   type: 'root' | 'task' | 'subtask'
   title: string
   status?: WorkItemSummary['status']
@@ -14,6 +17,7 @@ export interface HierarchyTreeNode {
 export interface HierarchyTreeSnapshot {
   revision: number
   itemCount: number
+  truncated: boolean
   roots: HierarchyTreeNode[]
 }
 
@@ -38,6 +42,15 @@ interface HierarchyTreeOptions {
   onClose(): void
   onRefresh(): Promise<HierarchyTreeSnapshot>
   onDetails(node: HierarchyTreeNode): void
+  onAdd(
+    node: HierarchyTreeNode,
+    expectedRevision: number
+  ): Promise<string | undefined>
+  onSetStatus(
+    node: HierarchyTreeNode,
+    status: 'open' | 'done' | 'archived',
+    expectedRevision: number
+  ): Promise<boolean>
 }
 
 /** Loads a bounded, consistent companion snapshot through the public service. */
@@ -48,19 +61,26 @@ export async function loadHierarchyTree(
   const items: WorkItemSummary[] = []
   let cursor: string | undefined
   let revision: number | undefined
+  let truncated = false
   do {
-    const page = await service.list({ rootGoalId, cursor, limit: 100 })
+    const page = await service.list({
+      rootGoalId,
+      cursor,
+      limit: Math.min(100, TREE_MAX_ITEMS - items.length),
+    })
     if (revision !== undefined && revision !== page.revision) {
       throw new Error('Hierarchy changed while loading; refresh and retry.')
     }
     revision = page.revision
     items.push(...page.items)
     cursor = page.nextCursor
-  } while (cursor !== undefined)
+    truncated = cursor !== undefined && items.length >= TREE_MAX_ITEMS
+  } while (cursor !== undefined && !truncated)
 
   return {
     revision: revision ?? 0,
     itemCount: items.length,
+    truncated,
     roots: buildHierarchyTree(items),
   }
 }
@@ -75,6 +95,7 @@ export function buildHierarchyTree(
     if (!roots.has(item.rootGoalId)) {
       roots.set(item.rootGoalId, {
         id: item.rootGoalId,
+        key: `root:${item.rootGoalId}`,
         type: 'root',
         title: `Stepstone root: ${item.rootGoalId}`,
         rootGoalId: item.rootGoalId,
@@ -83,6 +104,7 @@ export function buildHierarchyTree(
     }
     byId.set(item.id, {
       id: item.id,
+      key: `item:${item.id}`,
       type: item.kind,
       title: item.title,
       status: item.status,
@@ -112,7 +134,7 @@ export function visibleHierarchyRows(
   const rows: VisibleHierarchyRow[] = []
   const visit = (node: HierarchyTreeNode, depth: number) => {
     rows.push({ node, depth })
-    if (!expandedIds.has(node.id)) return
+    if (!expandedIds.has(node.key)) return
     for (const child of node.children) visit(child, depth + 1)
   }
   for (const root of roots) visit(root, 0)
@@ -136,6 +158,7 @@ export class HierarchyTreeComponent {
   }
 
   handleInput(data: string): void {
+    if (this.loading) return
     if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl('c'))) {
       this.options.onClose()
       return
@@ -153,7 +176,11 @@ export class HierarchyTreeComponent {
     else if (matchesKey(data, Key.enter)) {
       const selected = this.selectedRow()?.node
       if (selected !== undefined) this.options.onDetails(selected)
-    } else if (data === 'r') this.refresh()
+    } else if (data === 'a') this.add()
+    else if (data === 'd') this.setStatus('done')
+    else if (data === 'x') this.setStatus('archived')
+    else if (data === 'o') this.setStatus('open')
+    else if (data === 'r') this.refresh()
     this.options.requestRender()
   }
 
@@ -171,13 +198,20 @@ export class HierarchyTreeComponent {
       lines.push(this.options.theme.fg('error', this.error))
     if (this.loading)
       lines.push(this.options.theme.fg('warning', 'Refreshing hierarchy…'))
+    if (this.snapshot.truncated)
+      lines.push(
+        this.options.theme.fg(
+          'warning',
+          `Showing first ${TREE_MAX_ITEMS} items; scope by root for more.`
+        )
+      )
     if (rows.length === 0)
       lines.push(this.options.theme.fg('dim', 'No companion hierarchy items.'))
     for (const row of rows) lines.push(this.renderRow(row))
     lines.push(
       this.options.theme.fg(
         'dim',
-        '↑↓ navigate · ←→ collapse/open · enter details · r refresh · esc close'
+        '↑↓ navigate · ←→ collapse/open · a add · d done · x archive · o reopen · enter details · r refresh · esc close'
       )
     )
     return lines.map((line) => truncateToWidth(line, width))
@@ -190,60 +224,118 @@ export class HierarchyTreeComponent {
   }
 
   private selectedRow(): VisibleHierarchyRow | undefined {
-    return this.rows().find((row) => row.node.id === this.selectedId)
+    return this.rows().find((row) => row.node.key === this.selectedId)
   }
 
   private selectOffset(offset: number): void {
     const rows = this.rows()
-    const index = rows.findIndex((row) => row.node.id === this.selectedId)
+    const index = rows.findIndex((row) => row.node.key === this.selectedId)
     this.selectIndex(Math.max(0, Math.min(rows.length - 1, index + offset)))
   }
 
   private selectIndex(index: number): void {
-    this.selectedId = this.rows()[index]?.node.id
+    this.selectedId = this.rows()[index]?.node.key
   }
 
   private toggleSelected(): void {
     const node = this.selectedRow()?.node
     if (node === undefined || node.children.length === 0) return
-    if (this.expandedIds.has(node.id)) this.expandedIds.delete(node.id)
-    else this.expandedIds.add(node.id)
+    if (this.expandedIds.has(node.key)) this.expandedIds.delete(node.key)
+    else this.expandedIds.add(node.key)
   }
 
   private openOrEnterChild(): void {
     const node = this.selectedRow()?.node
     if (node === undefined || node.children.length === 0) return
-    if (!this.expandedIds.has(node.id)) {
-      this.expandedIds.add(node.id)
+    if (!this.expandedIds.has(node.key)) {
+      this.expandedIds.add(node.key)
       return
     }
-    this.selectedId = node.children[0]?.id
+    this.selectedId = node.children[0]?.key
   }
 
   private closeOrSelectParent(): void {
     const row = this.selectedRow()
     if (row === undefined) return
-    if (row.node.children.length > 0 && this.expandedIds.has(row.node.id)) {
-      this.expandedIds.delete(row.node.id)
+    if (row.node.children.length > 0 && this.expandedIds.has(row.node.key)) {
+      this.expandedIds.delete(row.node.key)
       return
     }
-    if (row.node.parentId !== undefined) this.selectedId = row.node.parentId
-    else if (row.node.type !== 'root') this.selectedId = row.node.rootGoalId
+    if (row.node.parentId !== undefined)
+      this.selectedId = `item:${row.node.parentId}`
+    else if (row.node.type !== 'root')
+      this.selectedId = `root:${row.node.rootGoalId}`
   }
 
-  private refresh(): void {
+  private add(): void {
+    const node = this.selectedRow()?.node
+    if (node === undefined) return
+    if (node.type === 'subtask') {
+      this.error = 'Subtasks cannot have children.'
+      return
+    }
+    if (node.type === 'task' && node.status !== 'open') {
+      this.error = 'A settled task cannot accept a subtask.'
+      return
+    }
+    this.runMutation(() => this.options.onAdd(node, this.snapshot.revision))
+  }
+
+  private setStatus(status: 'open' | 'done' | 'archived'): void {
+    const node = this.selectedRow()?.node
+    if (node === undefined) return
+    if (node.type === 'root') {
+      this.error = 'Stepstone roots are read-only through this extension.'
+      return
+    }
+    if (node.status === status) {
+      this.error = `Item is already ${status}.`
+      return
+    }
+    this.runMutation(() =>
+      this.options.onSetStatus(node, status, this.snapshot.revision)
+    )
+  }
+
+  private runMutation(
+    operation: () => Promise<string | boolean | undefined>
+  ): void {
+    if (this.loading) return
+    this.loading = true
+    this.error = undefined
+    this.options.requestRender()
+    void operation().then(
+      (selection) => {
+        this.loading = false
+        if (selection === false || selection === undefined) {
+          this.options.requestRender()
+          return
+        }
+        this.refresh(
+          typeof selection === 'string' ? selection : this.selectedId
+        )
+      },
+      (error: unknown) => {
+        this.loading = false
+        this.error = error instanceof Error ? error.message : String(error)
+        this.options.requestRender()
+      }
+    )
+  }
+
+  private refresh(preferredSelection = this.selectedId): void {
     if (this.loading) return
     this.loading = true
     this.error = undefined
     void this.options.onRefresh().then(
       (snapshot) => {
-        const selected = this.selectedId
+        const selected = preferredSelection
         this.snapshot = snapshot
         this.expandedIds = new Set(allExpandableIds(snapshot.roots))
         const rows = this.rows()
-        this.selectedId = rows.some((row) => row.node.id === selected)
+        this.selectedId = rows.some((row) => row.node.key === selected)
           ? selected
-          : rows[0]?.node.id
+          : rows[0]?.node.key
         this.loading = false
         this.options.requestRender()
       },
@@ -257,13 +349,13 @@ export class HierarchyTreeComponent {
 
   private renderRow(row: VisibleHierarchyRow): string {
     const { node, depth } = row
-    const selected = node.id === this.selectedId
+    const selected = node.key === this.selectedId
     const prefix = selected ? this.options.theme.fg('accent', '› ') : '  '
     const indent = '  '.repeat(depth)
     const expand =
       node.children.length === 0
         ? '  '
-        : this.expandedIds.has(node.id)
+        : this.expandedIds.has(node.key)
           ? '▾ '
           : '▸ '
     if (node.type === 'root') {
@@ -284,7 +376,7 @@ export class HierarchyTreeComponent {
 function allExpandableIds(roots: HierarchyTreeNode[]): string[] {
   const ids: string[] = []
   const visit = (node: HierarchyTreeNode) => {
-    if (node.children.length > 0) ids.push(node.id)
+    if (node.children.length > 0) ids.push(node.key)
     for (const child of node.children) visit(child)
   }
   for (const root of roots) visit(root)
