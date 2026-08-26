@@ -22,6 +22,17 @@
     {
       "matchManagers": ["github-actions"],
       "groupName": "github-actions"
+    },
+    {
+      "groupName": "pnpm packages",
+      "matchDatasources": [
+        "docker",
+        "npm"
+      ],
+      "matchPackageNames": [
+        "pnpm",
+        "ghcr.io/pnpm/pnpm"
+      ]
     }
   ],
   "prHourlyLimit": 5,
