@@ -1,7 +1,12 @@
 # 3 days, in minutes — mirrors Renovate's security:minimumReleaseAgeNpm preset
 minimumReleaseAge: 4320
 
-# Dependencies allowed to run install/build lifecycle scripts.
-# pnpm 10+ blocks build scripts by default; esbuild needs its postinstall to fetch its native binary.
+# pnpm 10+ blocks dependency lifecycle scripts by default. Classify every detected
+# build script explicitly so `pnpm install` stops emitting the approve-builds warning.
+# esbuild needs its postinstall to fetch its native binary.
 onlyBuiltDependencies:
   - esbuild
+# These transitive deps ship prebuilt dist/ output; their scripts are dev-only, so skip them.
+ignoredBuiltDependencies:
+  - '@google/genai'
+  - protobufjs
