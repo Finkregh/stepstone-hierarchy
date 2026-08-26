@@ -11,7 +11,12 @@ import {
 import { formatDoctorReport, runHierarchyDoctor } from './hierarchy-doctor.js'
 import { HierarchyStore } from './hierarchy.js'
 import { StepstoneCliRootGoalReader } from './root-goal.js'
-import { HierarchyTreeComponent, loadHierarchyTree } from './hierarchy-tui.js'
+import {
+  HierarchyTreeComponent,
+  loadHierarchyTree,
+  type HierarchyTreeNode,
+  type HierarchyTreeSnapshot,
+} from './hierarchy-tui.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -190,7 +195,69 @@ export default function hierarchyExtension(pi: ExtensionAPI) {
               )
               if (result.operation !== 'create')
                 throw new Error('Create did not return an item.')
-              return result.result.item.id
+              return `item:${result.result.item.id}`
+            },
+            onEdit: async (node, expectedRevision) => {
+              const current = await runtime.execute({
+                action: 'get',
+                id: node.id,
+              })
+              if (current.operation !== 'get')
+                throw new Error('Could not load item details.')
+              const title = await ctx.ui.input(
+                `Edit companion ${node.type}`,
+                'New title (leave blank to keep current)'
+              )
+              if (title === undefined) return undefined
+              const description = await ctx.ui.editor(
+                'Edit description',
+                current.result.item.description
+              )
+              if (description === undefined) return undefined
+              const nextTitle =
+                title.trim() === '' ? current.result.item.title : title.trim()
+              if (
+                nextTitle === current.result.item.title &&
+                description === current.result.item.description
+              ) {
+                return false
+              }
+              const result = await runtime.execute({
+                action: 'update',
+                expectedRevision,
+                id: node.id,
+                title: nextTitle,
+                description,
+              })
+              if (result.operation !== 'update')
+                throw new Error('Update did not return an item.')
+              return `item:${result.result.item.id}`
+            },
+            onMove: async (node, snapshot, expectedRevision) => {
+              const destination = await selectMoveDestination(
+                ctx,
+                node,
+                snapshot
+              )
+              if (destination === undefined) return undefined
+              const anchor = await selectMoveAnchor(
+                ctx,
+                node,
+                destination.parent
+              )
+              if (anchor.kind === 'cancelled') return undefined
+              if (isNoOpMove(node, destination.parent, anchor.beforeId))
+                return false
+              const result = await runtime.execute({
+                action: 'move',
+                expectedRevision,
+                id: node.id,
+                parentId: destination.parent.id,
+                beforeId: anchor.beforeId,
+              })
+              if (result.operation !== 'move')
+                throw new Error('Move did not return an item.')
+              return `item:${result.result.item.id}`
             },
             onSetStatus: async (node, status, expectedRevision) => {
               const result = await runtime.execute({
@@ -221,6 +288,80 @@ export default function hierarchyExtension(pi: ExtensionAPI) {
       if (ctx.hasUI) ctx.ui.notify(formatResult(result), 'info')
     },
   })
+}
+
+async function selectMoveDestination(
+  ctx: {
+    ui: {
+      select(title: string, options: string[]): Promise<string | undefined>
+    }
+  },
+  node: HierarchyTreeNode,
+  snapshot: HierarchyTreeSnapshot
+): Promise<{ parent: HierarchyTreeNode } | undefined> {
+  if (node.type === 'task') {
+    const parent = snapshot.roots.find((root) => root.id === node.rootGoalId)
+    return parent === undefined ? undefined : { parent }
+  }
+  const parents = flattenTree(snapshot.roots).filter(
+    (candidate) =>
+      candidate.type === 'task' &&
+      candidate.rootGoalId === node.rootGoalId &&
+      candidate.status === 'open'
+  )
+  const choices = parents.map((parent) => `${parent.title} (${parent.id})`)
+  const selected = await ctx.ui.select('Move subtask — choose task', choices)
+  if (selected === undefined) return undefined
+  const index = choices.indexOf(selected)
+  const parent = parents[index]
+  return parent === undefined ? undefined : { parent }
+}
+
+async function selectMoveAnchor(
+  ctx: {
+    ui: {
+      select(title: string, options: string[]): Promise<string | undefined>
+    }
+  },
+  node: HierarchyTreeNode,
+  parent: HierarchyTreeNode
+): Promise<{ kind: 'cancelled' } | { kind: 'placement'; beforeId?: string }> {
+  const siblings = parent.children.filter((sibling) => sibling.id !== node.id)
+  const choices = [
+    ...siblings.map((sibling) => `Before ${sibling.title} (${sibling.id})`),
+    parent.type === 'root' ? 'At end of root' : 'At end of task',
+  ]
+  const selected = await ctx.ui.select(`Place under ${parent.title}`, choices)
+  if (selected === undefined) return { kind: 'cancelled' }
+  const index = choices.indexOf(selected)
+  return {
+    kind: 'placement',
+    beforeId: index === siblings.length ? undefined : siblings[index]?.id,
+  }
+}
+
+function isNoOpMove(
+  node: HierarchyTreeNode,
+  parent: HierarchyTreeNode,
+  beforeId: string | undefined
+): boolean {
+  if (node.parentId !== parent.id) return false
+  const index = parent.children.findIndex((child) => child.id === node.id)
+  const nextSibling = parent.children[index + 1]?.id
+  return (
+    beforeId === nextSibling ||
+    (beforeId === undefined && index === parent.children.length - 1)
+  )
+}
+
+function flattenTree(roots: HierarchyTreeNode[]): HierarchyTreeNode[] {
+  const nodes: HierarchyTreeNode[] = []
+  const visit = (node: HierarchyTreeNode) => {
+    nodes.push(node)
+    for (const child of node.children) visit(child)
+  }
+  for (const root of roots) visit(root)
+  return nodes
 }
 
 function joinHierarchyPath(projectRoot: string): string {

@@ -51,6 +51,15 @@ interface HierarchyTreeOptions {
     status: 'open' | 'done' | 'archived',
     expectedRevision: number
   ): Promise<boolean>
+  onEdit(
+    node: HierarchyTreeNode,
+    expectedRevision: number
+  ): Promise<string | false | undefined>
+  onMove(
+    node: HierarchyTreeNode,
+    snapshot: HierarchyTreeSnapshot,
+    expectedRevision: number
+  ): Promise<string | false | undefined>
 }
 
 /** Loads a bounded, consistent companion snapshot through the public service. */
@@ -154,7 +163,7 @@ export class HierarchyTreeComponent {
     this.selectedId = visibleHierarchyRows(
       this.snapshot.roots,
       this.expandedIds
-    )[0]?.node.id
+    )[0]?.node.key
   }
 
   handleInput(data: string): void {
@@ -177,6 +186,8 @@ export class HierarchyTreeComponent {
       const selected = this.selectedRow()?.node
       if (selected !== undefined) this.options.onDetails(selected)
     } else if (data === 'a') this.add()
+    else if (data === 'e') this.edit()
+    else if (data === 'm') this.move()
     else if (data === 'd') this.setStatus('done')
     else if (data === 'x') this.setStatus('archived')
     else if (data === 'o') this.setStatus('open')
@@ -211,7 +222,7 @@ export class HierarchyTreeComponent {
     lines.push(
       this.options.theme.fg(
         'dim',
-        '↑↓ navigate · ←→ collapse/open · a add · d done · x archive · o reopen · enter details · r refresh · esc close'
+        '↑↓ navigate · ←→ collapse/open · a add · e edit · m move/reorder · d done · x archive · o reopen · enter details · r refresh · esc close'
       )
     )
     return lines.map((line) => truncateToWidth(line, width))
@@ -279,6 +290,33 @@ export class HierarchyTreeComponent {
       return
     }
     this.runMutation(() => this.options.onAdd(node, this.snapshot.revision))
+  }
+
+  private edit(): void {
+    const node = this.selectedRow()?.node
+    if (node === undefined) return
+    if (node.type === 'root') {
+      this.error = 'Stepstone roots are read-only through this extension.'
+      return
+    }
+    this.runMutation(() => this.options.onEdit(node, this.snapshot.revision))
+  }
+
+  private move(): void {
+    const node = this.selectedRow()?.node
+    if (node === undefined) return
+    if (node.type === 'root') {
+      this.error = 'Stepstone roots are read-only through this extension.'
+      return
+    }
+    if (this.snapshot.truncated) {
+      this.error =
+        'Scope by root before moving items from a truncated hierarchy.'
+      return
+    }
+    this.runMutation(() =>
+      this.options.onMove(node, this.snapshot, this.snapshot.revision)
+    )
   }
 
   private setStatus(status: 'open' | 'done' | 'archived'): void {
