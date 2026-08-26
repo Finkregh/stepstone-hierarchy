@@ -1,2 +1,7 @@
 # 3 days, in minutes — mirrors Renovate's security:minimumReleaseAgeNpm preset
 minimumReleaseAge: 4320
+
+# Dependencies allowed to run install/build lifecycle scripts.
+# pnpm 10+ blocks build scripts by default; esbuild needs its postinstall to fetch its native binary.
+onlyBuiltDependencies:
+  - esbuild
