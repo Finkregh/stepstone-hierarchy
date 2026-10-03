@@ -63,8 +63,8 @@
     "@eslint/js": "^10.0.0",
     "@tsconfig/node24": "^24.0.1",
     "@types/node": "^24.10.0",
-    "@vitest/coverage-v8": "^4.0.8",
-    "@vitest/ui": "^4.0.8",
+    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/ui": "^5.0.0",
     "acorn": "^8.15.0",
     "commitlint": "^20.1.0",
     "esbuild": "^0.28.0",
@@ -75,6 +75,6 @@
     "typescript": "^5.4.5",
     "typescript-eslint": "^8.46.3",
     "vitepress": "2.0.0-alpha.19",
-    "vitest": "^4.0.8"
+    "vitest": "^5.0.0"
   }
 }
